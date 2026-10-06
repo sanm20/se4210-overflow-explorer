@@ -6,7 +6,7 @@ State University.
 
 ## Live Demo
 
-[View it live on Netlify]((https://4210-overflow-explorer.netlify.app/))
+[View it live on Netlify](https://4210-overflow-explorer.netlify.app/)
 
 ## What it does
 
