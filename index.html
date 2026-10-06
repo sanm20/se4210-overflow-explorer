@@ -1,0 +1,670 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Integer Overflow Explorer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2236;
+    --border: #1f2d45;
+    --accent: #3b82f6;
+    --accent2: #06b6d4;
+    --danger: #ef4444;
+    --success: #22c55e;
+    --warn: #f59e0b;
+    --text: #e2e8f0;
+    --text-muted: #64748b;
+    --text-dim: #94a3b8;
+    --mono: 'Space Mono', monospace;
+    --sans: 'Space Grotesk', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    padding: 2rem 1rem;
+  }
+
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+  }
+
+  header {
+    margin-bottom: 3rem;
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--accent);
+    letter-spacing: 0.08em;
+    margin-bottom: 0.75rem;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    font-weight: 700;
+    line-height: 1.1;
+    color: #fff;
+    margin-bottom: 1rem;
+  }
+
+  h1 span {
+    color: var(--accent);
+  }
+
+  .subtitle {
+    font-size: 1rem;
+    color: var(--text-dim);
+    max-width: 52ch;
+    line-height: 1.6;
+  }
+
+  /* Controls */
+  .controls {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 1rem;
+  }
+
+  @media (max-width: 600px) {
+    .controls { grid-template-columns: 1fr; }
+  }
+
+  .control-group label {
+    display: block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-bottom: 0.5rem;
+    letter-spacing: 0.05em;
+  }
+
+  .control-group input[type="number"],
+  .control-group select {
+    width: 100%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 0.6rem 0.75rem;
+    outline: none;
+    transition: border-color 0.15s;
+    -moz-appearance: textfield;
+  }
+
+  .control-group input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; }
+
+  .control-group input:focus,
+  .control-group select:focus {
+    border-color: var(--accent);
+  }
+
+  .control-group select option { background: var(--surface2); }
+
+  /* Slider */
+  .slider-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .slider-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 1rem;
+  }
+
+  .slider-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+  }
+
+  .slider-value {
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    color: var(--accent);
+  }
+
+  input[type="range"] {
+    width: 100%;
+    -webkit-appearance: none;
+    height: 6px;
+    background: var(--border);
+    border-radius: 3px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 18px;
+    height: 18px;
+    background: var(--accent);
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+
+  input[type="range"]::-webkit-slider-thumb:hover { background: var(--accent2); }
+
+  /* Display panels */
+  .panels {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  @media (max-width: 600px) { .panels { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+  }
+
+  .big-number {
+    font-family: var(--mono);
+    font-size: clamp(1.5rem, 4vw, 2.25rem);
+    font-weight: 700;
+    color: #fff;
+    word-break: break-all;
+    line-height: 1.2;
+  }
+
+  .big-number.overflow { color: var(--danger); }
+  .big-number.warning  { color: var(--warn); }
+  .big-number.fine     { color: var(--success); }
+
+  .range-info {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    margin-top: 0.5rem;
+  }
+
+  /* Binary visualizer */
+  .binary-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .bit-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 0.75rem;
+  }
+
+  .bit {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 0.85rem;
+    font-weight: 700;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+    color: var(--text-muted);
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+  }
+
+  .bit.on {
+    background: #1d3557;
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  .bit.sign-bit.on {
+    background: #3b0f0f;
+    border-color: var(--danger);
+    color: var(--danger);
+  }
+
+  .bit-index-row {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    margin-top: 4px;
+  }
+
+  .bit-index {
+    width: 32px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 0.6rem;
+    color: var(--text-muted);
+  }
+
+  /* Overflow animation */
+  .overflow-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .bar-track {
+    height: 20px;
+    background: var(--surface2);
+    border-radius: 10px;
+    overflow: hidden;
+    margin: 0.75rem 0 0.5rem;
+    position: relative;
+  }
+
+  .bar-fill {
+    height: 100%;
+    border-radius: 10px;
+    transition: width 0.3s ease, background 0.3s ease;
+  }
+
+  .bar-labels {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    color: var(--text-muted);
+  }
+
+  /* Explainer */
+  .explainer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .explainer p {
+    font-size: 0.9rem;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+
+  .explainer p strong { color: var(--text); }
+
+  .status-badge {
+    display: inline-block;
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    padding: 0.2rem 0.6rem;
+    border-radius: 20px;
+    margin-bottom: 0.75rem;
+    font-weight: 700;
+  }
+
+  .status-badge.safe    { background: #052e16; color: var(--success); border: 1px solid #166534; }
+  .status-badge.near    { background: #451a03; color: var(--warn);    border: 1px solid #92400e; }
+  .status-badge.danger  { background: #3b0f0f; color: var(--danger);  border: 1px solid #991b1b; }
+
+  /* Overflow history */
+  .history {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.25rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .history-title {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 0.75rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .clear-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+  }
+
+  .clear-btn:hover { color: var(--text); border-color: var(--text-dim); }
+
+  .history-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    max-height: 160px;
+    overflow-y: auto;
+  }
+
+  .history-item {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text-dim);
+    padding: 0.3rem 0.5rem;
+    border-radius: 4px;
+    background: var(--surface2);
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .history-item .input-val { color: var(--warn); }
+  .history-item .wrapped-val { color: var(--danger); }
+
+  .empty-history {
+    font-family: var(--mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding: 1rem 0;
+  }
+
+  footer {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    text-align: center;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <p class="eyebrow">SE/CprE 4210 — Interactive Learning Module</p>
+    <h1>Integer <span>Overflow</span> Explorer</h1>
+    <p class="subtitle">See exactly what happens when a number exceeds its fixed-width boundary. Adjust the value and bit width to watch the bits flip and the value wrap.</p>
+  </header>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>INPUT VALUE</label>
+      <input type="number" id="inputVal" value="100" />
+    </div>
+    <div class="control-group">
+      <label>BIT WIDTH</label>
+      <select id="bitWidth">
+        <option value="8">8-bit</option>
+        <option value="16" selected>16-bit</option>
+        <option value="32">32-bit</option>
+      </select>
+    </div>
+    <div class="control-group">
+      <label>SIGNEDNESS</label>
+      <select id="signedness">
+        <option value="signed">Signed</option>
+        <option value="unsigned">Unsigned</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="slider-wrap">
+    <div class="slider-header">
+      <span class="slider-label">SLIDE TO EXPLORE THE RANGE</span>
+      <span class="slider-value" id="sliderDisplay">100</span>
+    </div>
+    <input type="range" id="slider" min="-32768" max="65535" value="100" />
+  </div>
+
+  <div class="panels">
+    <div class="panel">
+      <div class="panel-title">YOUR INPUT</div>
+      <div class="big-number" id="inputDisplay">100</div>
+      <div class="range-info" id="rangeInfo"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">STORED VALUE (after overflow)</div>
+      <div class="big-number" id="storedDisplay">100</div>
+    </div>
+  </div>
+
+  <div class="binary-panel">
+    <div class="panel-title">BINARY REPRESENTATION</div>
+    <div class="bit-row" id="bitRow"></div>
+    <div class="bit-index-row" id="bitIndexRow"></div>
+  </div>
+
+  <div class="overflow-bar">
+    <div class="panel-title">CAPACITY METER</div>
+    <div class="bar-track">
+      <div class="bar-fill" id="barFill"></div>
+    </div>
+    <div class="bar-labels">
+      <span id="minLabel"></span>
+      <span id="maxLabel"></span>
+    </div>
+  </div>
+
+  <div class="explainer">
+    <div class="status-badge safe" id="statusBadge">SAFE</div>
+    <p id="explainerText"></p>
+  </div>
+
+  <div class="history">
+    <div class="history-title">
+      <span>OVERFLOW EVENTS</span>
+      <button class="clear-btn" onclick="clearHistory()">clear</button>
+    </div>
+    <ul class="history-list" id="historyList">
+      <li class="empty-history" id="emptyMsg">No overflows triggered yet. Keep going.</li>
+    </ul>
+  </div>
+
+  <footer>SE/CprE 4210 — Integer Overflow Explorer &nbsp;|&nbsp; ISU Fall 2026</footer>
+</div>
+
+<script>
+  const inputEl    = document.getElementById('inputVal');
+  const bitWidthEl = document.getElementById('bitWidth');
+  const signedEl   = document.getElementById('signedness');
+  const sliderEl   = document.getElementById('slider');
+  const sliderDisp = document.getElementById('sliderDisplay');
+
+  const inputDisp  = document.getElementById('inputDisplay');
+  const storedDisp = document.getElementById('storedDisplay');
+  const rangeInfo  = document.getElementById('rangeInfo');
+  const bitRow     = document.getElementById('bitRow');
+  const bitIndex   = document.getElementById('bitIndexRow');
+  const barFill    = document.getElementById('barFill');
+  const minLabel   = document.getElementById('minLabel');
+  const maxLabel   = document.getElementById('maxLabel');
+  const badge      = document.getElementById('statusBadge');
+  const explainer  = document.getElementById('explainerText');
+  const histList   = document.getElementById('historyList');
+  const emptyMsg   = document.getElementById('emptyMsg');
+
+  let overflowHistory = [];
+
+  function getBounds(bits, signed) {
+    if (signed) {
+      return { min: -(2 ** (bits - 1)), max: (2 ** (bits - 1)) - 1 };
+    } else {
+      return { min: 0, max: (2 ** bits) - 1 };
+    }
+  }
+
+  function wrap(value, bits, signed) {
+    const mod = 2 ** bits;
+    let wrapped = ((value % mod) + mod) % mod;
+    if (signed && wrapped >= mod / 2) wrapped -= mod;
+    return wrapped;
+  }
+
+  function toBinary(value, bits, signed) {
+    const mod = 2 ** bits;
+    let unsigned = ((value % mod) + mod) % mod;
+    return unsigned.toString(2).padStart(bits, '0');
+  }
+
+  function updateSliderRange(bits, signed) {
+    const { min, max } = getBounds(bits, signed);
+    // Give slider a bit of headroom to show overflow
+    sliderEl.min = min - Math.floor((max - min) * 0.2);
+    sliderEl.max = max + Math.floor((max - min) * 0.2);
+  }
+
+  function update() {
+    const bits   = parseInt(bitWidthEl.value);
+    const signed = signedEl.value === 'signed';
+    const raw    = parseInt(inputEl.value) || 0;
+    const { min, max } = getBounds(bits, signed);
+    const stored = wrap(raw, bits, signed);
+    const overflowed = raw < min || raw > max;
+    const nearEdge   = !overflowed && (raw > max * 0.85 || (signed && raw < min * 0.85));
+
+    // Sync slider display
+    sliderDisp.textContent = raw;
+
+    // Input display
+    inputDisp.textContent = raw.toLocaleString();
+    inputDisp.className   = 'big-number ' + (overflowed ? 'overflow' : nearEdge ? 'warning' : 'fine');
+
+    // Stored display
+    storedDisp.textContent = stored.toLocaleString();
+    storedDisp.className   = 'big-number ' + (overflowed ? 'overflow' : 'fine');
+
+    // Range info
+    rangeInfo.textContent = `Valid range: ${min.toLocaleString()} to ${max.toLocaleString()}`;
+
+    // Binary
+    const binStr = toBinary(raw, bits, signed);
+    bitRow.innerHTML   = '';
+    bitIndex.innerHTML = '';
+    for (let i = 0; i < bits; i++) {
+      const b = document.createElement('div');
+      b.className = 'bit' + (binStr[i] === '1' ? ' on' : '') + (i === 0 && signed ? ' sign-bit' : '');
+      b.textContent = binStr[i];
+      bitRow.appendChild(b);
+
+      const idx = document.createElement('div');
+      idx.className   = 'bit-index';
+      idx.textContent = bits - 1 - i;
+      bitIndex.appendChild(idx);
+    }
+
+    // Bar
+    const total  = max - min;
+    const pos    = Math.min(Math.max(raw - min, 0), total);
+    const pct    = overflowed ? 100 : (pos / total) * 100;
+    barFill.style.width      = pct + '%';
+    barFill.style.background = overflowed
+      ? 'var(--danger)'
+      : pct > 85
+      ? 'var(--warn)'
+      : 'var(--accent)';
+    minLabel.textContent = min.toLocaleString();
+    maxLabel.textContent = max.toLocaleString();
+
+    // Badge and explainer
+    if (overflowed) {
+      badge.className       = 'status-badge danger';
+      badge.textContent     = 'OVERFLOW';
+      explainer.innerHTML   = `<strong>${raw.toLocaleString()}</strong> exceeds the ${bits}-bit ${signed ? 'signed' : 'unsigned'} range of <strong>${min.toLocaleString()} to ${max.toLocaleString()}</strong>. The value wraps around using modulo ${(2**bits).toLocaleString()} arithmetic and is stored as <strong>${stored.toLocaleString()}</strong>. In C, this is undefined behavior for signed integers and well-defined wrap-around for unsigned ones. This is exactly how the <strong>Ariane 5 rocket</strong> crashed — a 64-bit float was forced into a 16-bit integer, the value overflowed, and the guidance system crashed.`;
+
+      // Log to history
+      const alreadyLogged = overflowHistory.some(e => e.input === raw && e.stored === stored);
+      if (!alreadyLogged) {
+        overflowHistory.unshift({ input: raw, stored, bits, signed });
+        if (overflowHistory.length > 10) overflowHistory.pop();
+        renderHistory();
+      }
+    } else if (nearEdge) {
+      badge.className     = 'status-badge near';
+      badge.textContent   = 'NEAR LIMIT';
+      explainer.innerHTML = `<strong>${raw.toLocaleString()}</strong> is close to the ${bits}-bit ${signed ? 'signed' : 'unsigned'} maximum of <strong>${max.toLocaleString()}</strong>. Keep incrementing and you will trigger an overflow. Notice the sign bit${signed ? ' (leftmost, highlighted red when negative)' : ''} and how the binary pattern changes as you approach the boundary.`;
+    } else {
+      badge.className     = 'status-badge safe';
+      badge.textContent   = 'SAFE';
+      explainer.innerHTML = `<strong>${raw.toLocaleString()}</strong> fits safely in a ${bits}-bit ${signed ? 'signed' : 'unsigned'} integer. The binary representation above shows all ${bits} bits used to store this value. ${signed ? 'The leftmost bit is the <strong>sign bit</strong> — when it flips to 1, the number becomes negative.' : 'All bits contribute to the magnitude of the value.'}`;
+    }
+  }
+
+  function renderHistory() {
+    if (overflowHistory.length === 0) {
+      histList.innerHTML = '<li class="empty-history" id="emptyMsg">No overflows triggered yet. Keep going.</li>';
+      return;
+    }
+    histList.innerHTML = overflowHistory.map(e =>
+      `<li class="history-item">
+        <span>Input <span class="input-val">${e.input.toLocaleString()}</span> in ${e.bits}-bit ${e.signed ? 'signed' : 'unsigned'}</span>
+        <span>stored as <span class="wrapped-val">${e.stored.toLocaleString()}</span></span>
+      </li>`
+    ).join('');
+  }
+
+  function clearHistory() {
+    overflowHistory = [];
+    renderHistory();
+  }
+
+  // Sync slider -> input
+  sliderEl.addEventListener('input', () => {
+    inputEl.value = sliderEl.value;
+    update();
+  });
+
+  // Sync input -> slider
+  inputEl.addEventListener('input', () => {
+    sliderEl.value = inputEl.value;
+    update();
+  });
+
+  bitWidthEl.addEventListener('change', () => {
+    updateSliderRange(parseInt(bitWidthEl.value), signedEl.value === 'signed');
+    update();
+  });
+
+  signedEl.addEventListener('change', () => {
+    updateSliderRange(parseInt(bitWidthEl.value), signedEl.value === 'signed');
+    update();
+  });
+
+  // Init
+  updateSliderRange(16, true);
+  update();
+</script>
+</body>
+</html>
